@@ -321,8 +321,8 @@ HH.statusFor = function statusFor(s, day, now, config) {
   }
   if (t < s.end) {
     const label = s.untilClose && s.end >= HH.END_OF_DAY
-      ? "On now · until close"
-      : `On now · ${HH.formatDuration(s.end - t)} left`;
+      ? "Now · until close"
+      : `Ends in ${HH.formatDuration(s.end - t)}`;
     return { state: "now", label, sortKey: s.end };
   }
   return { state: "ended", label: "Ended", sortKey: s.start };
