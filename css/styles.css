@@ -466,6 +466,19 @@ details.section.is-dim .card { opacity: 0.55; }
 }
 .inline-link svg { width: 15px; height: 15px; }
 
+/* ---------- add a spot ---------- */
+.title-actions { display: flex; gap: 8px; }
+.field {
+  display: block; width: 100%; border: 0; outline: 0; padding: 12px 16px;
+  background: transparent; color: var(--label); font: inherit; font-size: 17px;
+}
+.field::placeholder { color: var(--label-3); }
+.sheet .photo-pick { margin-top: 0; }
+.sheet .btn-primary { margin-top: 18px; }
+.footer-add { margin-bottom: 10px !important; }
+.footer-add .inline-link { font-size: 15px; }
+.footer-add .inline-link svg { width: 17px; height: 17px; }
+
 /* ---------- menu photo viewer ---------- */
 .photo-viewer {
   border: 0; padding: 0; width: min(94vw, 720px); max-height: 92dvh; border-radius: 18px;
@@ -494,6 +507,12 @@ details.section.is-dim .card { opacity: 0.55; }
   background: transparent; color: var(--label); font: inherit; font-size: 16px;
 }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.btn-primary {
+  display: block; width: 100%; margin-top: 18px; padding: 14px; border-radius: 14px;
+  background: var(--tint-button); color: var(--on-tint); font-size: 17px; font-weight: 600; text-align: center;
+  transition: transform 0.15s var(--ease), opacity 0.15s;
+}
+.btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.4; }
 .upload-done { text-align: center; padding: 20px 12px 4px; }
 .upload-done .check { visibility: visible; width: 44px; height: 44px; color: var(--green); stroke-width: 2.4; }
