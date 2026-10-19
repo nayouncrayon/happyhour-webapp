@@ -96,6 +96,22 @@ Safeguards:
 - Only photos Gemini reads as a menu go live automatically; you can reject any upload at any time.
 - Photos in the Drive folder are "anyone with the link can view", so the app can display approved ones.
 
+### Add a spot from the app (optional; same web app as menu uploads)
+
+The **+** button (and "Add a missing spot" at the bottom of the list) opens **Add a Spot**. Only the name is required; a neighborhood hint and a happy hour menu photo are optional. `google-apps-script/add-spot.gs` then works through these steps:
+
+1. **Duplicate check:** checks the Spots tab. If the spot is already listed, the app offers to upload a menu photo for it instead.
+2. **Web lookup:** asks Gemini with **Google Search** to find the place in San Diego. It fills in address, neighborhood, type, phone, website, Yelp, price level, and published happy hour windows and deals, and keeps the source links in `Details note`.
+3. **Photo:** if one was added, reads it like a menu upload. For days, hours and deals, the photo wins over the web results.
+4. **Map pin:** places it using Apps Script's built-in geocoder (free, no key).
+5. **New rows:** writes to Spots, Schedules and Deals (plus Menu Uploads/Items when there's a photo), with `Status = Needs check`. The `(auto)` and `#` formula columns are filled in for you.
+
+A new spot shows in the list once it has at least one happy hour window. If none were found, upload a menu photo for it or add a Schedules row.
+
+Setup: in the same Apps Script project, add a file named `add-spot` and paste `google-apps-script/add-spot.gs`. Also re-paste the updated `menu-upload.gs`, then go to **Deploy → Manage deployments → edit → New version**. The URL stays the same.
+
+Limits: `MAX_NEW_SPOTS_PER_DAY` (Script property, default 15). Google Search grounding has a monthly free allowance, then per-search pricing; see Gemini's Google Search docs.
+
 ---
 
 ## Project structure
@@ -112,6 +128,7 @@ happy-hour-app/
 ├── data/sample-data.js Snapshot of the sheet as CSV text; used when no sheet is connected.
 ├── google-apps-script/auto-last-verified.gs  Optional: auto-stamps Last verified (paste into Extensions → Apps Script).
 ├── google-apps-script/menu-upload.gs         Optional: menu photo uploads read by Gemini (deployed as a web app).
+├── google-apps-script/add-spot.gs            Optional: "Add a Spot" (web lookup + optional photo); same web app.
 └── README.md           This file.
 ```
 
@@ -133,7 +150,7 @@ Read this before modifying the project.
   - "Now" is always computed in `config.TIME_ZONE` (America/Los_Angeles).
 - **Separation:** `data.js` must stay DOM-free. All rendering lives in `app.js`, which builds HTML strings. All sheet text passes through `esc()`, and links pass through `safeUrl()` or `telUrl()`. Keep it that way, because the sheet is user-editable content.
 - **Column names:** sheet headers are mapped in one place, `HH.COLUMNS` in `data.js`. Don't hard-code header strings elsewhere.
-- **Menu uploads:** `menuUploads`/`menuItems` tabs are optional (`loadOptionalTab` in `data.js` checks headers, since gviz returns the first sheet for an unknown tab name). Only `Status = Approved` uploads reach the model: `spot.menuPhoto`, `spot.dietaryItems`. Uploads POST JSON as `text/plain` (no CORS preflight) to `MENU_UPLOAD_URL`.
+- **Menu uploads:** `menuUploads`/`menuItems` tabs are optional (`loadOptionalTab` in `data.js` checks headers, since gviz returns the first sheet for an unknown tab name). Only `Status = Approved` uploads reach the model: `spot.menuPhoto`, `spot.dietaryItems`. Uploads POST JSON as `text/plain` (no CORS preflight) to `MENU_UPLOAD_URL`; `{action: "addSpot"}` posts go to `addSpot_` in `add-spot.gs`.
 - **Fallback:** if no sheet is configured or loading fails, the app uses `window.HH_SAMPLE_CSV` from `data/sample-data.js` and shows a banner.
 - **Preferences:** view and filters are saved in `localStorage` under `hh-preferences-v1`, wrapped in try/catch. This is a per-device convenience, never a data store.
 - **Testing:** there's no test runner. The logic in `csv.js`, `time.js` and `data.js` can be exercised in Node by loading those files into a `vm` context with a fake `window`.

@@ -13,7 +13,7 @@
 
   <!-- Map library (Leaflet). Map tiles are set in js/config.js. -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/styles.css?v=20261019d">
+  <link rel="stylesheet" href="css/styles.css?v=20261019e">
 </head>
 <body>
   <!--
@@ -28,10 +28,15 @@
       <h1 id="app-title">Happy Hours</h1>
       <p class="subtitle" id="app-subtitle">Downtown San Diego</p>
     </div>
-    <button id="filters-btn" class="icon-btn" type="button" aria-label="Filters">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
-      <span id="filter-count" class="badge-count" hidden></span>
-    </button>
+    <div class="title-actions">
+      <button id="add-btn" class="icon-btn" type="button" aria-label="Add a spot" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button id="filters-btn" class="icon-btn" type="button" aria-label="Filters">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+        <span id="filter-count" class="badge-count" hidden></span>
+      </button>
+    </div>
   </header>
 
   <div class="sticky-bar" id="sticky-bar">
@@ -122,14 +127,24 @@
     <div id="upload-body" class="sheet-body"></div>
   </dialog>
 
+  <dialog id="add-dialog" class="sheet" aria-labelledby="add-title">
+    <div class="grabber" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <button id="add-cancel" type="button" class="text-btn">Cancel</button>
+      <h2 id="add-title">Add a Spot</h2>
+      <span></span>
+    </div>
+    <div id="add-body" class="sheet-body"></div>
+  </dialog>
+
   <!-- Load order matters: config → helpers → sample data → data → app.
        The ?v= stamp makes phones fetch fresh files after an update: change it whenever you edit css/js. -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-  <script src="js/config.js?v=20261019d" defer></script>
-  <script src="js/csv.js?v=20261019d" defer></script>
-  <script src="js/time.js?v=20261019d" defer></script>
-  <script src="data/sample-data.js?v=20261019d" defer></script>
-  <script src="js/data.js?v=20261019d" defer></script>
-  <script src="js/app.js?v=20261019d" defer></script>
+  <script src="js/config.js?v=20261019e" defer></script>
+  <script src="js/csv.js?v=20261019e" defer></script>
+  <script src="js/time.js?v=20261019e" defer></script>
+  <script src="data/sample-data.js?v=20261019e" defer></script>
+  <script src="js/data.js?v=20261019e" defer></script>
+  <script src="js/app.js?v=20261019e" defer></script>
 </body>
 </html>
