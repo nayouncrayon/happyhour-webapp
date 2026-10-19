@@ -1,11 +1,13 @@
 /**
  * menu-upload.gs — receives menu photos from the app, reads them with Gemini, and queues the
- * results in the sheet for review. Nothing shows in the app until you set Status = Approved.
+ * results in the sheet. By default a photo Gemini recognizes as a menu goes live right away
+ * (Status = Approved); anything else waits as Pending. Set AUTO_APPROVE = false to review everything.
  *
  * Flow
  *   App (anyone) → POST photo to this web app → photo saved to your Google Drive →
- *   Gemini reads it → one row in "Menu Uploads" + one row per item in "Menu Items" (Status: Pending)
- *   → you review → set Status to Approved → the app shows the dietary tags and the menu photo.
+ *   Gemini reads it → one row in "Menu Uploads" + one row per item in "Menu Items"
+ *   → Status Approved (auto) → the app shows the dietary tags and the menu photo.
+ *   To take one down: set its Status to Rejected (or untick Show? on a single item).
  *
  * One-time setup (about 5 minutes)
  *   1. Get a free Gemini API key: https://aistudio.google.com/apikey
@@ -14,7 +16,8 @@
  *        GEMINI_API_KEY = your key
  *      Optional: GEMINI_MODEL (default below; see https://ai.google.dev/gemini-api/docs/models),
  *                MAX_UPLOADS_PER_DAY (default 40; counted in rolling ~6-hour windows),
- *                MAX_UPLOADS_PER_SPOT_PER_HOUR (default 3).
+ *                MAX_UPLOADS_PER_SPOT_PER_HOUR (default 3),
+ *                AUTO_APPROVE (default true; set to false to review every upload first).
  *   4. Back in the editor, pick the function "setupMenuUploads" in the toolbar and click Run.
  *      Google asks for permission (Sheets, Drive, external requests). This also creates the tabs.
  *   5. Deploy → New deployment → type "Web app" → Execute as: Me → Who has access: Anyone → Deploy.
@@ -23,7 +26,8 @@
  *
  * Privacy/abuse notes
  *   - Your API key stays here (Script properties); it is never sent to the browser.
- *   - Uploads are rate-limited and always start as Pending.
+ *   - Uploads are rate-limited. Photos that don't look like a menu, or that Gemini couldn't read,
+ *     stay Pending for you to check.
  *   - Photos are saved in Drive as "anyone with the link can view" so the app can show approved ones.
  */
 
@@ -86,7 +90,10 @@ function doPost(e) {
     }
 
     writeRows_(uploadId, spot, file, parsed, note, aiError);
-    return json_({ ok: true, uploadId: uploadId, summary: summarize_(parsed), aiError: aiError || undefined });
+    return json_({
+      ok: true, uploadId: uploadId, status: statusFor_(parsed),
+      summary: summarize_(parsed), aiError: aiError || undefined,
+    });
   } catch (err) {
     return json_({ ok: false, error: "Something went wrong: " + String(err && err.message ? err.message : err) });
   }
@@ -271,7 +278,7 @@ function writeRows_(uploadId, spot, file, parsed, note, aiError) {
   ].filter(String).join(" ");
 
   ss.getSheetByName(MENU.UPLOADS_TAB).appendRow([
-    uploadId, spot.id, spot.name, new Date(), "Pending", file.url, file.id,
+    uploadId, spot.id, spot.name, new Date(), statusFor_(parsed), file.url, file.id,
     (hh.days || []).join(" "), hh.start_time || "", hh.end_time || "", hh.details || "",
     ((parsed && parsed.deals) || []).join("; "), items.length, note, aiNotes,
     parsed ? JSON.stringify(parsed).slice(0, 45000) : "",
@@ -288,6 +295,12 @@ function writeRows_(uploadId, spot, file, parsed, note, aiError) {
     const sh = ss.getSheetByName(MENU.ITEMS_TAB);
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
   }
+}
+
+/** Auto-approve readable menus unless AUTO_APPROVE is set to "false". Everything else waits as Pending. */
+function statusFor_(parsed) {
+  const auto = String(PropertiesService.getScriptProperties().getProperty("AUTO_APPROVE") || "true").toLowerCase() !== "false";
+  return auto && parsed && parsed.is_menu !== false ? "Approved" : "Pending";
 }
 
 function summarize_(parsed) {
