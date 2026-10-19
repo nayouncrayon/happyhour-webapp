@@ -69,6 +69,33 @@ To install:
 
 Note that any edit counts, including fixing a typo. If you only want to stamp spots you actually checked, skip the automatic part and use just the menu: delete the `onEdit` function from the script.
 
+### Menu photo uploads (optional, one-time setup)
+
+Anyone using the app can tap **Upload menu photo** on a spot. The photo goes to your Google Apps Script, which saves it to your Google Drive and asks Gemini to read it. The results land in two new tabs as **Pending**:
+
+| Tab | One row per… | What you do |
+|---|---|---|
+| **Menu Uploads** | uploaded photo | Check the photo and what was read: happy hour days/hours/details, deal rules, item count, AI notes. Set `Status` to **Approved** or **Rejected**. |
+| **Menu Items** | item read from the menu | Section, item, description, price, dietary tags. Untick `Show?` to hide one item. Fix any tag that's wrong. |
+
+Once an upload is approved, the app shows a **Menu** button on the spot (the photo) and green dietary chips (Vegetarian, Vegan, Gluten-free…) that expand into the matching items. Approving also stamps that spot's `Last verified` date. Days, hours and deals read from the photo are **not** copied into Schedules/Deals automatically; compare them and update those tabs yourself.
+
+Setup:
+
+1. Get a free Gemini API key at aistudio.google.com/apikey. The free tier has daily limits; check yours in AI Studio.
+2. In the sheet, go to **Extensions → Apps Script → + → Script**, name it `menu-upload`, and paste `google-apps-script/menu-upload.gs`. Also re-paste `auto-last-verified.gs` (updated so that approving a menu stamps Last verified).
+3. Go to **Project Settings → Script properties** and add `GEMINI_API_KEY`. Optionally also set `GEMINI_MODEL`, `MAX_UPLOADS_PER_DAY` and `MAX_UPLOADS_PER_SPOT_PER_HOUR`.
+4. In the editor, choose **setupMenuUploads** and click **Run**, then allow the permissions. This creates the two tabs and a Drive folder.
+5. Go to **Deploy → New deployment → Web app**, with **Execute as: Me** and **Who has access: Anyone**. Copy the URL into `MENU_UPLOAD_URL` in `js/config.js`.
+
+Safeguards:
+
+- The API key stays in Apps Script and never reaches the browser.
+- Uploads are rate-limited (per spot per hour, and overall).
+- A hidden honeypot field drops most bots.
+- Nothing is public until you approve it.
+- Photos in the Drive folder are "anyone with the link can view", so the app can display approved ones.
+
 ---
 
 ## Project structure
@@ -83,7 +110,8 @@ happy-hour-app/
 ├── js/data.js          Loads the 3 tabs, cleans rows, links them, computes status (on now / soon / later / ended).
 ├── js/app.js           UI: week strip, search, list cards, filters sheet, tab bar, map. Reads the model from data.js.
 ├── data/sample-data.js Snapshot of the sheet as CSV text; used when no sheet is connected.
-├── google-apps-script/auto-last-verified.gs  Optional script pasted into the sheet (Extensions → Apps Script) to auto-stamp Last verified.
+├── google-apps-script/auto-last-verified.gs  Optional: auto-stamps Last verified (paste into Extensions → Apps Script).
+├── google-apps-script/menu-upload.gs         Optional: menu photo uploads read by Gemini (deployed as a web app).
 └── README.md           This file.
 ```
 
@@ -105,10 +133,11 @@ Read this before modifying the project.
   - "Now" is always computed in `config.TIME_ZONE` (America/Los_Angeles).
 - **Separation:** `data.js` must stay DOM-free. All rendering lives in `app.js`, which builds HTML strings. All sheet text passes through `esc()`, and links pass through `safeUrl()` or `telUrl()`. Keep it that way, because the sheet is user-editable content.
 - **Column names:** sheet headers are mapped in one place, `HH.COLUMNS` in `data.js`. Don't hard-code header strings elsewhere.
+- **Menu uploads:** `menuUploads`/`menuItems` tabs are optional (`loadOptionalTab` in `data.js` checks headers, since gviz returns the first sheet for an unknown tab name). Only `Status = Approved` uploads reach the model: `spot.menuPhoto`, `spot.dietaryItems`. Uploads POST JSON as `text/plain` (no CORS preflight) to `MENU_UPLOAD_URL`.
 - **Fallback:** if no sheet is configured or loading fails, the app uses `window.HH_SAMPLE_CSV` from `data/sample-data.js` and shows a banner.
 - **Preferences:** view and filters are saved in `localStorage` under `hh-preferences-v1`, wrapped in try/catch. This is a per-device convenience, never a data store.
 - **Testing:** there's no test runner. The logic in `csv.js`, `time.js` and `data.js` can be exercised in Node by loading those files into a `vm` context with a fake `window`.
-- **Out of scope for v1:** logins/accounts, photo upload, ratings/reviews, notifications, user incentive programs, dietary filters, crawl planning, social features, and filtering by happy hour type. These were deliberately left out; see the PRD.
+- **Out of scope for v1:** logins/accounts, ratings/reviews, notifications, user incentive programs, dietary filters, crawl planning, social features, and filtering by happy hour type. These were deliberately left out; see the PRD.
 
 ---
 

@@ -98,6 +98,30 @@
     <div id="filters-body" class="sheet-body"></div>
   </dialog>
 
+  <dialog id="photo-dialog" class="photo-viewer" aria-labelledby="photo-title">
+    <div class="photo-head">
+      <div>
+        <h2 id="photo-title"></h2>
+        <p id="photo-date"></p>
+      </div>
+      <button id="photo-close" type="button" class="icon-btn small" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>
+      </button>
+    </div>
+    <img id="photo-img" alt="">
+    <a id="photo-open" class="text-btn" href="#" target="_blank" rel="noopener">Open original</a>
+  </dialog>
+
+  <dialog id="upload-dialog" class="sheet" aria-labelledby="upload-title">
+    <div class="grabber" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <button id="upload-cancel" type="button" class="text-btn">Cancel</button>
+      <h2 id="upload-title">Upload Menu</h2>
+      <span></span>
+    </div>
+    <div id="upload-body" class="sheet-body"></div>
+  </dialog>
+
   <!-- Load order matters: config → helpers → sample data → data → app. -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="js/config.js" defer></script>
