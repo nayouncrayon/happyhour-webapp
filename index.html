@@ -3,60 +3,99 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#E8613C">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Happy Hour SD">
   <meta name="description" content="Happy hours in downtown San Diego: what's on now, what's next, and the deals.">
   <title>Happy Hour SD</title>
 
-  <!-- Map library (Leaflet) + OpenStreetMap tiles: free, no API key. -->
+  <!-- Map library (Leaflet). Map tiles are set in js/config.js. -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <h1 id="app-title">Happy Hour SD</h1>
-      <p id="app-subtitle">Downtown San Diego</p>
+  <!--
+    Layout (iOS-style):
+      large title  →  sticky frosted bar (compact title + week strip)  →  search  →  content
+      fixed frosted tab bar at the bottom (Happy Hours · Map)
+  -->
+
+  <header class="large-title" id="large-title">
+    <div class="large-title-text">
+      <p class="eyebrow" id="eyebrow"></p>
+      <h1 id="app-title">Happy Hours</h1>
+      <p class="subtitle" id="app-subtitle">Downtown San Diego</p>
     </div>
-    <button id="filters-btn" class="btn-pill" type="button">
-      Filters <span id="filter-count" class="filter-count" hidden></span>
+    <button id="filters-btn" class="icon-btn" type="button" aria-label="Filters">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+      <span id="filter-count" class="badge-count" hidden></span>
     </button>
   </header>
 
-  <nav id="day-tabs" class="days" role="tablist" aria-label="Day of week"></nav>
-
-  <div class="toolbar">
-    <div class="segmented" role="tablist" aria-label="View">
-      <button type="button" data-view="list" role="tab">List</button>
-      <button type="button" data-view="map" role="tab">Map</button>
+  <div class="sticky-bar" id="sticky-bar">
+    <div class="compact-row">
+      <span class="compact-title" id="compact-title">Happy Hours</span>
+      <button id="filters-btn-compact" class="icon-btn small" type="button" aria-label="Filters">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+      </button>
     </div>
-    <p id="summary" class="summary" aria-live="polite"></p>
+    <nav id="week" class="week" role="tablist" aria-label="Day of week"></nav>
+  </div>
+
+  <div class="search-wrap">
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+      <input id="search" type="search" placeholder="Search spots, deals, neighborhoods" autocomplete="off" enterkeyhint="search">
+      <button id="search-clear" class="search-clear" type="button" aria-label="Clear search" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8"/></svg>
+      </button>
+    </label>
   </div>
 
   <div id="banner" class="banner" hidden></div>
 
   <main>
-    <section id="list-view" class="list-view"><p class="muted loading">Loading happy hours…</p></section>
+    <p id="summary" class="summary" aria-live="polite"></p>
+    <section id="list-view" class="list-view"><div class="loading"><span class="spinner"></span>Loading happy hours…</div></section>
     <section id="map-view" class="map-view" hidden>
-      <div id="map" class="map" role="region" aria-label="Map of happy hours"></div>
-      <div class="legend">
-        <span><i class="pin pin-now"></i>On now</span>
-        <span><i class="pin pin-soon"></i>Soon</span>
-        <span><i class="pin pin-later"></i>Later</span>
-        <span><i class="pin pin-ended"></i>Ended</span>
+      <div class="map-frame">
+        <div id="map" class="map" role="region" aria-label="Map of happy hours"></div>
+        <button id="locate-btn" class="map-btn" type="button" aria-label="Show my location">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4L4 11l7 2 2 7z"/></svg>
+        </button>
+        <div class="legend" aria-hidden="true">
+          <span><i class="dot dot-now"></i>Now</span>
+          <span><i class="dot dot-soon"></i>Soon</span>
+          <span><i class="dot dot-later"></i>Later</span>
+          <span><i class="dot dot-ended"></i>Ended</span>
+        </div>
       </div>
-      <p id="map-note" class="muted"></p>
+      <p id="map-note" class="map-note"></p>
     </section>
+    <footer id="footer" class="footer"></footer>
   </main>
 
-  <footer id="footer" class="footer"></footer>
+  <nav class="tab-bar" aria-label="Views">
+    <button type="button" class="tab" data-view="list">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>
+      <span>Happy Hours</span>
+    </button>
+    <button type="button" class="tab" data-view="map">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13M15 6.5v13"/></svg>
+      <span>Map</span>
+    </button>
+  </nav>
 
   <dialog id="filters-dialog" class="sheet" aria-labelledby="filters-title">
+    <div class="grabber" aria-hidden="true"></div>
     <div class="sheet-head">
+      <button id="filters-reset" type="button" class="text-btn">Reset</button>
       <h2 id="filters-title">Filters</h2>
-      <button id="filters-reset" type="button" class="link">Reset</button>
+      <button id="filters-done" type="button" class="text-btn strong">Done</button>
     </div>
     <div id="filters-body" class="sheet-body"></div>
-    <button id="filters-done" type="button" class="btn-primary">Show results</button>
   </dialog>
 
   <!-- Load order matters: config → helpers → sample data → data → app. -->

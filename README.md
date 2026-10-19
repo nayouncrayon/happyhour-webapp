@@ -19,7 +19,7 @@ A mobile-friendly web app that shows happy hours in downtown San Diego: what's o
    5. Reload the page. The banner disappears once the app is reading your sheet.
 3. **Put it online** (pick one; both are free):
    - **Netlify Drop:** go to app.netlify.com/drop and drag the whole `happy-hour-app` folder onto the page. You get a link right away.
-   - **GitHub Pages:** create a repository, upload these files, then go to **Settings → Pages → Deploy from branch → main**. This also gives you version history.
+   - **GitHub Pages:** create a repository, upload these files, then go to **Settings → Pages → Deploy from branch → main → / (root)**. Keep `index.html` at the top level of the repo. This also gives you version history.
 
 > **Ownership tip:** use a *personal* Google account for the sheet, and a personal Netlify or GitHub account for hosting. Work accounts often block public sharing, and you lose access to them when you leave the job.
 
@@ -51,6 +51,8 @@ Rules the app follows:
 - **No days ticked** (e.g. "days unknown", Padres win): the window appears in a "Days not listed" section on every day.
 - **`Days confirmed?` = FALSE** shows a "Days unconfirmed" badge.
 - **`Last verified`:** filled in automatically once you install the script below, or type a date yourself. The footer shows the % of spots verified in the last 30 days.
+- **Map pins:** each pin needs `Latitude` and `Longitude`. For a new spot, right-click the place in Google Maps and click the coordinates to copy them.
+- **Columns:** add, reorder or ignore columns freely. Renaming one requires the matching edit in `HH.COLUMNS` in `js/data.js`.
 
 ### Auto-fill "Last verified" (optional, one-time setup)
 
@@ -66,8 +68,6 @@ To install:
 3. Check that **File → Settings → Time zone** is Pacific, so "today" means San Diego's today.
 
 Note that any edit counts, including fixing a typo. If you only want to stamp spots you actually checked, skip the automatic part and use just the menu: delete the `onEdit` function from the script.
-- **Map pins:** each pin needs `Latitude` and `Longitude`. For a new spot, right-click the place in Google Maps and click the coordinates to copy them.
-- **Columns:** add, reorder or ignore columns freely. Renaming one requires the matching edit in `HH.COLUMNS` in `js/data.js`.
 
 ---
 
@@ -81,13 +81,15 @@ happy-hour-app/
 ├── js/csv.js           Tiny CSV parser (no libraries).
 ├── js/time.js          Time helpers: San Diego "now", parse "4:30 PM", format "4–6 PM".
 ├── js/data.js          Loads the 3 tabs, cleans rows, links them, computes status (on now / soon / later / ended).
-├── js/app.js           UI: day tabs, list cards, filters sheet, map. Reads the model from data.js.
+├── js/app.js           UI: week strip, search, list cards, filters sheet, tab bar, map. Reads the model from data.js.
 ├── data/sample-data.js Snapshot of the sheet as CSV text; used when no sheet is connected.
 ├── google-apps-script/auto-last-verified.gs  Optional script pasted into the sheet (Extensions → Apps Script) to auto-stamp Last verified.
 └── README.md           This file.
 ```
 
-**External dependency:** Leaflet 1.9.4 (map library) loads from unpkg.com, and map tiles come from OpenStreetMap. If they fail to load, the list still works and the map view says it couldn't load.
+**Design:** iOS-style (Apple Human Interface Guidelines): system font, grouped backgrounds, frosted bars, a bottom tab bar, and iOS teal as the accent. All colors are tokens at the top of `css/styles.css`, with light and dark mode following the phone's setting.
+
+**External dependency:** Leaflet 1.9.4 (map library) loads from unpkg.com, and map tiles come from CARTO's free basemaps built on OpenStreetMap data (set in `MAP_TILES` in `js/config.js`). If they fail to load, the list still works and the map view says it couldn't load.
 
 ---
 
