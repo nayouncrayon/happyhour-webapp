@@ -62,6 +62,7 @@ function doPost(e) {
   try {
     const body = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     if (body.website) return json_({ ok: true, ignored: true }); // honeypot field filled = bot
+    if (body.action === "addSpot") return json_(addSpot_(body)); // see add-spot.gs
 
     const spotId = String(body.spotId || "").trim();
     const image = String(body.image || "");
@@ -114,7 +115,11 @@ const MENU_PROMPT = [
   "Extract only what is visibly written on the menu. Never guess or invent items, prices, days or times.",
   "- happy_hour: the days and hours of happy hour if printed, plus other conditions",
   "  (bar only, dine-in only, exclusions, holidays). Leave fields empty if not shown.",
-  "- deals: blanket deal rules, written as short phrases, e.g. \"1/2 off all appetizers\", \"$2 off draft beers\".",
+  "  If there are several windows (e.g. weekdays 3-6 PM and Sunday all day, or late night), list each in",
+  "  happy_hour.windows; also put the main window in days/start_time/end_time.",
+  "- deals: blanket deal rules, e.g. \"1/2 off all appetizers\", \"$2 off draft beers\". For each, give the",
+  "  full phrase as description, plus category (Drink/Food/Combo), item, price (number) and/or discount.",
+  "- items: also give each item a category (Drink, Food or Combo).",
   "- items: every menu item with its section heading, description and price exactly as shown.",
   "  Set happy_hour true for items on a happy hour menu or marked as happy hour.",
   "- dietary: only tag an item when the menu marks it (e.g. V, VG, GF symbols with a legend) or the",
@@ -135,9 +140,33 @@ const MENU_SCHEMA = {
         start_time: { type: "string", description: "e.g. 3:00 PM. Empty if not shown." },
         end_time: { type: "string", description: "e.g. 6:00 PM, or 'close'. Empty if not shown." },
         details: { type: "string" },
+        windows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string" },
+              days: { type: "array", items: { type: "string", enum: MENU.DAYS } },
+              start_time: { type: "string" },
+              end_time: { type: "string" },
+            },
+          },
+        },
       },
     },
-    deals: { type: "array", items: { type: "string" } },
+    deals: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          description: { type: "string" },
+          category: { type: "string", enum: ["Drink", "Food", "Combo"] },
+          item: { type: "string" },
+          price: { type: "number" },
+          discount: { type: "string" },
+        },
+      },
+    },
     items: {
       type: "array",
       items: {
@@ -148,6 +177,7 @@ const MENU_SCHEMA = {
           description: { type: "string" },
           price: { type: "number", description: "Numeric price in dollars if a single price is shown." },
           price_text: { type: "string", description: "Price exactly as printed, e.g. '$8 / $12'." },
+          category: { type: "string", enum: ["Drink", "Food", "Combo"] },
           happy_hour: { type: "boolean" },
           dietary: { type: "array", items: { type: "string", enum: MENU.DIETARY } },
         },
@@ -280,7 +310,7 @@ function writeRows_(uploadId, spot, file, parsed, note, aiError) {
   ss.getSheetByName(MENU.UPLOADS_TAB).appendRow([
     uploadId, spot.id, spot.name, new Date(), statusFor_(parsed), file.url, file.id,
     (hh.days || []).join(" "), hh.start_time || "", hh.end_time || "", hh.details || "",
-    ((parsed && parsed.deals) || []).join("; "), items.length, note, aiNotes,
+    ((parsed && parsed.deals) || []).map(dealText_).join("; "), items.length, note, aiNotes,
     parsed ? JSON.stringify(parsed).slice(0, 45000) : "",
   ]);
 
@@ -313,8 +343,14 @@ function summarize_(parsed) {
   return {
     isMenu: parsed.is_menu !== false,
     days: hh.days || [], start: hh.start_time || "", end: hh.end_time || "", details: hh.details || "",
-    deals: parsed.deals || [], itemCount: (parsed.items || []).length, dietary: counts,
+    deals: (parsed.deals || []).map(dealText_), itemCount: (parsed.items || []).length, dietary: counts,
   };
+}
+
+/** Deals may come back as plain strings or as objects. */
+function dealText_(d) {
+  if (typeof d === "string") return d;
+  return d.description || [d.discount, d.item, typeof d.price === "number" ? "$" + d.price : ""].filter(String).join(" ");
 }
 
 /* ---------- rate limiting ---------- */
