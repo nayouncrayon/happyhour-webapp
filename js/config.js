@@ -40,7 +40,7 @@ window.HH_CONFIG = {
 
   // Menu photo uploads: paste the Web app URL from deploying google-apps-script/menu-upload.gs.
   // Leave empty to hide the "Upload Menu Photo" button.
-  MENU_UPLOAD_URL: "",
+  MENU_UPLOAD_URL: "https://script.google.com/macros/s/AKfycbx402dPE1cDFzHioscUct_sXW1-PvtCzE3AvZj2W53E3WpG5PoCnYwUVeykcaUMf7GSUA/exec",
 
   // Fall back to data/sample-data.js when the sheet can't be loaded.
   USE_SAMPLE_DATA_IF_SHEET_FAILS: true,
