@@ -89,7 +89,7 @@ happy-hour-app/
 
 **Design:** iOS-style (Apple Human Interface Guidelines): system font, grouped backgrounds, frosted bars, a bottom tab bar, and iOS teal as the accent. All colors are tokens at the top of `css/styles.css`, with light and dark mode following the phone's setting.
 
-**External dependency:** Leaflet 1.9.4 (map library) loads from unpkg.com, and map tiles come from CARTO's free basemaps built on OpenStreetMap data (set in `MAP_TILES` in `js/config.js`). If they fail to load, the list still works and the map view says it couldn't load.
+**External dependency:** Leaflet 1.9.4 (map library) loads from unpkg.com, and map tiles come from OpenStreetMap (free, no API key; set in `MAP_TILES` in `js/config.js`). Dark mode inverts the tiles with a CSS filter. If they fail to load, the list still works and the map view says it couldn't load.
 
 ---
 
