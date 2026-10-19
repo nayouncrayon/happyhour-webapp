@@ -22,6 +22,9 @@
     check: '<svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
     search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
     glass: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l-7 8z"/><path d="M12 12v7M8 20h8"/></svg>',
+    menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    leaf: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z"/><path d="M5 19l7-7"/></svg>',
   };
 
   /* ---------- state ---------- */
@@ -44,6 +47,7 @@
     search: "",
     filters: { ...DEFAULT_FILTERS },
     expanded: new Set(), // schedule IDs whose full deal list is open
+    dietOpen: new Set(), // spot IDs whose dietary list is open
   };
 
   // Remember view + filters on this device (never required; fails quietly in private mode).
@@ -221,6 +225,7 @@
 
     const actions = [
       directionsUrl(spot) && `<a class="action primary" href="${esc(directionsUrl(spot))}" target="_blank" rel="noopener">${ICON.directions}Directions</a>`,
+      spot.menuPhoto && `<button type="button" class="action" data-photo="${esc(spot.id)}">${ICON.menu}Menu</button>`,
       telUrl(spot.phone) && `<a class="action" href="${esc(telUrl(spot.phone))}">${ICON.phone}Call</a>`,
       safeUrl(spot.website) && `<a class="action" href="${esc(safeUrl(spot.website))}" target="_blank" rel="noopener">${ICON.globe}Website</a>`,
       safeUrl(spot.yelpUrl) && `<a class="action" href="${esc(safeUrl(spot.yelpUrl))}" target="_blank" rel="noopener">${ICON.star}Yelp</a>`,
@@ -243,9 +248,34 @@
         </div>
         <div class="when">${ICON.clock}<span class="time">${esc(HH.formatWindow(s))}</span>${tags.join("")}</div>
         ${deals}
+        ${dietaryHtml(spot)}
         ${actions ? `<div class="actions">${actions}</div>` : ""}
-        <p class="footnote">${foot}</p>
+        <p class="footnote">${foot}${config.MENU_UPLOAD_URL
+          ? ` <button type="button" class="inline-link" data-upload="${esc(spot.id)}">${ICON.camera}Upload menu photo</button>` : ""}</p>
       </article>`;
+  }
+
+  /** Dietary tags read from approved menu photos: tag chips, tap to see the items. */
+  function dietaryHtml(spot) {
+    if (!spot.dietaryItems.length) return "";
+    const counts = {};
+    spot.dietaryItems.forEach((it) => it.dietary.forEach((t) => { counts[t] = (counts[t] || 0) + 1; }));
+    const open = state.dietOpen.has(spot.id);
+    const chips = Object.keys(counts).sort().map((t) =>
+      `<span class="diet-chip">${esc(t)} <b>${counts[t]}</b></span>`).join("");
+    const list = open ? `<ul class="diet-list">${spot.dietaryItems.map((it) => {
+      const price = it.price !== null ? `$${Number.isInteger(it.price) ? it.price : it.price.toFixed(2)}` : it.priceText;
+      return `<li><span class="deal-item">${esc(it.name)}${it.happyHour ? ' <span class="tag tag-special">HH</span>' : ""}
+          ${it.description ? `<span class="deal-note">${esc(it.description)}</span>` : ""}
+          <span class="diet-tags">${it.dietary.map(esc).join(" · ")}</span></span>
+        <span class="deal-price">${esc(price || "")}</span></li>`;
+    }).join("")}</ul>` : "";
+    return `<div class="diet">
+      <button type="button" class="diet-head" data-diet="${esc(spot.id)}" aria-expanded="${open}">
+        ${ICON.leaf}<span class="diet-chips">${chips}</span>${ICON.chevron}
+      </button>${list}
+      ${open ? '<p class="deal-note">Read from the menu photo. Always confirm allergies with staff.</p>' : ""}
+    </div>`;
   }
 
   function emptyHtml() {
@@ -443,6 +473,162 @@
     render();
   }
 
+  /* ---------- menu photo viewer ---------- */
+
+  function openPhoto(spotId) {
+    const spot = state.model.spots.get(spotId);
+    if (!spot || !spot.menuPhoto) return;
+    const p = spot.menuPhoto;
+    const dlg = $("#photo-dialog");
+    $("#photo-title").textContent = spot.name;
+    $("#photo-date").textContent = p.submitted
+      ? `Menu photo · ${p.submitted.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "Menu photo";
+    const img = $("#photo-img");
+    img.hidden = !p.imageUrl;
+    img.src = p.imageUrl || "";
+    img.alt = `Menu at ${spot.name}`;
+    const link = $("#photo-open");
+    link.href = safeUrl(p.photoUrl) || p.imageUrl;
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+
+  /* ---------- menu photo upload (sends to google-apps-script/menu-upload.gs) ---------- */
+
+  const upload = { spotId: null, image: null, busy: false };
+
+  function openUpload(spotId) {
+    const spot = state.model.spots.get(spotId);
+    if (!spot || !config.MENU_UPLOAD_URL) return;
+    upload.spotId = spotId;
+    upload.image = null;
+    renderUploadForm(spot);
+    const dlg = $("#upload-dialog");
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+
+  function renderUploadForm(spot) {
+    $("#upload-body").innerHTML = `
+      <p class="upload-spot">${esc(spot.name)}</p>
+      <label class="photo-pick">
+        <input type="file" id="upload-file" accept="image/*">
+        <img id="upload-preview" alt="" hidden>
+        <span class="photo-pick-empty" id="upload-empty">${ICON.camera}<span>Take or choose a photo of the happy hour menu</span></span>
+      </label>
+      <p class="group-label">Note (optional)</p>
+      <div class="group"><textarea id="upload-note" class="note" rows="2" maxlength="500"
+        placeholder="e.g. new menu as of this week"></textarea></div>
+      <input type="text" id="upload-website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="button" id="upload-submit" class="btn-primary" disabled>Upload Photo</button>
+      <p class="group-foot">We read the days, hours, deals, prices and dietary labels automatically.
+        Photos are reviewed before they appear in the app.</p>`;
+  }
+
+  /** Shrink the photo (long edge 2000px, JPEG) so uploads are quick on cell data. */
+  async function prepareImage(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("That file doesn't look like a photo."));
+        i.src = url;
+      });
+      const MAX = 2000;
+      const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      return { dataUrl, base64: dataUrl.split(",")[1], mimeType: "image/jpeg" };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function submitUpload() {
+    if (upload.busy || !upload.image) return;
+    upload.busy = true;
+    const spot = state.model.spots.get(upload.spotId);
+    const payload = {
+      spotId: upload.spotId,
+      image: upload.image.base64,
+      mimeType: upload.image.mimeType,
+      note: ($("#upload-note") || {}).value || "",
+      website: ($("#upload-website") || {}).value || "", // honeypot: bots fill this in
+    };
+    $("#upload-body").innerHTML = `<div class="loading"><span class="spinner"></span>Reading the menu… this can take up to 30 seconds.</div>`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 90000);
+    try {
+      // No custom headers → a "simple" request, which Apps Script web apps accept cross-origin.
+      const res = await fetch(config.MENU_UPLOAD_URL, { method: "POST", body: JSON.stringify(payload), signal: ctrl.signal });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Upload failed.");
+      renderUploadResult(spot, data);
+    } catch (e) {
+      $("#upload-body").innerHTML = `<div class="empty">${ICON.camera}<h3>Couldn't Upload</h3>
+        <p>${esc(e.name === "AbortError" ? "It took too long. Please try again." : e.message || e)}</p></div>
+        <button type="button" class="btn-primary" data-retry>Try Again</button>`;
+    } finally {
+      clearTimeout(timer);
+      upload.busy = false;
+    }
+  }
+
+  function renderUploadResult(spot, data) {
+    const s = data.summary;
+    const rows = [];
+    if (s) {
+      if (!s.isMenu) rows.push(["Heads up", "This might not be a menu, but we'll take a look."]);
+      const when = [s.days.join(", "), [s.start, s.end].filter(Boolean).join("–")].filter(Boolean).join(" · ");
+      if (when) rows.push(["Happy hour", when]);
+      if (s.details) rows.push(["Details", s.details]);
+      if (s.deals.length) rows.push(["Deals", s.deals.join("; ")]);
+      rows.push(["Menu items", String(s.itemCount)]);
+      const diet = Object.keys(s.dietary || {}).map((k) => `${k} ${s.dietary[k]}`).join(" · ");
+      if (diet) rows.push(["Dietary", diet]);
+    }
+    $("#upload-body").innerHTML = `
+      <div class="upload-done">${ICON.check}<h3>Thanks!</h3>
+        <p>Your photo of ${esc(spot.name)}'s menu was sent for review.</p></div>
+      ${rows.length ? `<p class="group-label">What we read</p><div class="group">${rows.map(([k, v]) =>
+        `<div class="row"><span class="row-text">${esc(k)}<small>${esc(v)}</small></span></div>`).join("")}</div>`
+        : `<p class="group-foot">${esc(data.aiError ? "We couldn't read it automatically, but we'll review it by hand." : "")}</p>`}
+      <button type="button" class="btn-primary" data-close-upload>Done</button>`;
+  }
+
+  function wireMenuDialogs() {
+    const photoDlg = $("#photo-dialog");
+    $("#photo-close").addEventListener("click", () => photoDlg.close ? photoDlg.close() : photoDlg.removeAttribute("open"));
+    photoDlg.addEventListener("click", (e) => { if (e.target === photoDlg && photoDlg.close) photoDlg.close(); });
+
+    const dlg = $("#upload-dialog");
+    const close = () => (dlg.close ? dlg.close() : dlg.removeAttribute("open"));
+    $("#upload-cancel").addEventListener("click", close);
+    dlg.addEventListener("click", (e) => { if (e.target === dlg && !upload.busy) close(); });
+    $("#upload-body").addEventListener("change", async (e) => {
+      if (e.target.id !== "upload-file" || !e.target.files[0]) return;
+      try {
+        upload.image = await prepareImage(e.target.files[0]);
+        const prev = $("#upload-preview");
+        prev.src = upload.image.dataUrl;
+        prev.hidden = false;
+        $("#upload-empty").hidden = true;
+        $("#upload-submit").disabled = false;
+      } catch (err) {
+        upload.image = null;
+        $("#upload-submit").disabled = true;
+        alert(err.message || err);
+      }
+    });
+    $("#upload-body").addEventListener("click", (e) => {
+      if (e.target.closest("#upload-submit")) submitUpload();
+      if (e.target.closest("[data-close-upload]")) close();
+      if (e.target.closest("[data-retry]")) renderUploadForm(state.model.spots.get(upload.spotId));
+    });
+  }
+
   /* ---------- footer ---------- */
 
   function renderFooter() {
@@ -509,7 +695,18 @@
         render();
       }
       if (e.target.closest('[data-action="reset-filters"]')) resetFilters();
+      const diet = e.target.closest("[data-diet]");
+      if (diet) {
+        const id = diet.dataset.diet;
+        state.dietOpen.has(id) ? state.dietOpen.delete(id) : state.dietOpen.add(id);
+        render();
+      }
+      const photo = e.target.closest("[data-photo]");
+      if (photo) openPhoto(photo.dataset.photo);
+      const up = e.target.closest("[data-upload]");
+      if (up) openUpload(up.dataset.upload);
     });
+    wireMenuDialogs();
 
     const dialog = $("#filters-dialog");
     const openFilters = () => {

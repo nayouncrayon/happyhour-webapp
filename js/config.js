@@ -33,7 +33,14 @@ window.HH_CONFIG = {
     spots: "Spots",
     schedules: "Schedules",
     deals: "Deals",
+    // Optional tabs, created by google-apps-script/menu-upload.gs. The app works without them.
+    menuUploads: "Menu Uploads",
+    menuItems: "Menu Items",
   },
+
+  // Menu photo uploads: paste the Web app URL from deploying google-apps-script/menu-upload.gs.
+  // Leave empty to hide the "Upload Menu Photo" button.
+  MENU_UPLOAD_URL: "",
 
   // Fall back to data/sample-data.js when the sheet can't be loaded.
   USE_SAMPLE_DATA_IF_SHEET_FAILS: true,

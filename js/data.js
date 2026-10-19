@@ -33,6 +33,16 @@ HH.COLUMNS = {
     id: "Deal ID", spotId: "Spot ID", scheduleId: "Schedule ID", category: "Category",
     item: "Item", price: "Price ($)", discount: "Discount", notes: "Notes",
   },
+  // Optional tabs written by google-apps-script/menu-upload.gs (menu photos read by Gemini).
+  // Only uploads with Status = Approved are used.
+  menuUploads: {
+    id: "Upload ID", spotId: "Spot ID", submitted: "Submitted", status: "Status",
+    photoUrl: "Photo URL", photoId: "Photo file ID",
+  },
+  menuItems: {
+    uploadId: "Upload ID", spotId: "Spot ID", section: "Section", item: "Item", description: "Description",
+    price: "Price ($)", priceText: "Price text", happyHour: "Happy hour item?", dietary: "Dietary", show: "Show?",
+  },
 };
 
 /* ---------- small value cleaners ---------- */
@@ -142,8 +152,39 @@ HH.loadTabJsonp = function loadTabJsonp(sheetId, tabName, timeoutMs = 15000) {
   });
 };
 
-/** Load all three tabs from the sheet. Resolves to { spots: [...], schedules: [...], deals: [...] }. */
+/**
+ * Load an optional tab (menu uploads/items). Missing or empty tabs just give [].
+ * `mustHave` is a header that proves we got the right tab (not some other sheet).
+ */
+async function loadOptionalTab(config, key, mustHave) {
+  const name = config.TAB_NAMES && config.TAB_NAMES[key];
+  if (!name) return [];
+  try {
+    let rows = [];
+    if (csvUrlsConfigured(config)) {
+      if (config.CSV_URLS[key]) rows = await fetchCsvRows(config.CSV_URLS[key]);
+    } else if (config.GOOGLE_SHEET_ID) {
+      rows = await HH.loadTabJsonp(config.GOOGLE_SHEET_ID, name, 10000);
+    }
+    return rows.length && mustHave in rows[0] ? rows : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Load all tabs from the sheet. Resolves to { spots, schedules, deals, menuUploads, menuItems }. */
 async function loadFromSheet(config) {
+  const raw = await loadRequiredTabs(config);
+  const [uploads, items] = await Promise.all([
+    loadOptionalTab(config, "menuUploads", HH.COLUMNS.menuUploads.status),
+    loadOptionalTab(config, "menuItems", HH.COLUMNS.menuItems.dietary),
+  ]);
+  raw.menuUploads = uploads;
+  raw.menuItems = items;
+  return raw;
+}
+
+async function loadRequiredTabs(config) {
   const raw = {};
   if (csvUrlsConfigured(config)) {
     const lists = await Promise.all(KEYS.map((k) => fetchCsvRows(config.CSV_URLS[k])));
@@ -222,6 +263,9 @@ HH.buildModel = function buildModel(raw, config) {
       lat, lng,
       hasCoords: lat !== null && lng !== null,
       schedules: [],
+      menuUploads: [],   // approved menu photos, newest first
+      menuPhoto: null,   // newest approved upload with a photo
+      dietaryItems: [],  // approved menu items with dietary tags
     });
   });
 
@@ -288,6 +332,44 @@ HH.buildModel = function buildModel(raw, config) {
   schedules.forEach((s) => {
     s.hasFood = s.deals.some((d) => /food|combo/i.test(d.category));
     s.hasDrinks = s.deals.some((d) => /drink|combo/i.test(d.category));
+  });
+
+  // Approved menu uploads → menu photo + dietary-tagged items per spot.
+  const approved = new Map();
+  (raw.menuUploads || []).forEach((row) => {
+    if (!/^approved$/i.test(pick(row, C.menuUploads.status))) return;
+    const spot = spots.get(pick(row, C.menuUploads.spotId));
+    if (!spot) return;
+    const photoId = pick(row, C.menuUploads.photoId);
+    const upload = {
+      id: pick(row, C.menuUploads.id),
+      submitted: HH.parseDate(pick(row, C.menuUploads.submitted)),
+      photoUrl: pick(row, C.menuUploads.photoUrl),
+      photoId,
+      // Drive serves a resized image for publicly shared files at this address.
+      imageUrl: /^[\w-]{10,}$/.test(photoId) ? `https://drive.google.com/thumbnail?id=${photoId}&sz=w2000` : "",
+    };
+    approved.set(upload.id, { upload, spot });
+    spot.menuUploads.push(upload);
+  });
+  spots.forEach((spot) => {
+    spot.menuUploads.sort((a, b) => (b.submitted || 0) - (a.submitted || 0));
+    spot.menuPhoto = spot.menuUploads.find((u) => u.imageUrl || u.photoUrl) || null;
+  });
+  (raw.menuItems || []).forEach((row) => {
+    const match = approved.get(pick(row, C.menuItems.uploadId));
+    if (!match || falsy(pick(row, C.menuItems.show))) return;
+    const dietary = pick(row, C.menuItems.dietary).split(/[,;]/).map((t) => t.trim()).filter(Boolean);
+    if (!dietary.length) return;
+    match.spot.dietaryItems.push({
+      name: pick(row, C.menuItems.item),
+      description: pick(row, C.menuItems.description),
+      section: pick(row, C.menuItems.section),
+      price: toNumber(pick(row, C.menuItems.price)),
+      priceText: pick(row, C.menuItems.priceText),
+      happyHour: truthy(pick(row, C.menuItems.happyHour)),
+      dietary,
+    });
   });
 
   return { spots, schedules, deals };
