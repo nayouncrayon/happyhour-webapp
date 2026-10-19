@@ -25,6 +25,8 @@
     menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
     camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
     leaf: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z"/><path d="M5 19l7-7"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0113 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
   };
 
   /* ---------- state ---------- */
@@ -636,6 +638,147 @@
     });
   }
 
+  /* ---------- add a spot (sends {action: "addSpot"} to google-apps-script/add-spot.gs) ---------- */
+
+  const adding = { image: null, busy: false, refresh: false };
+
+  function openAdd(prefill) {
+    if (!config.MENU_UPLOAD_URL) return;
+    adding.image = null;
+    renderAddForm(prefill || "");
+    const dlg = $("#add-dialog");
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+    setTimeout(() => { const n = $("#add-name"); if (n) n.focus(); }, 300);
+  }
+
+  function renderAddForm(name) {
+    $("#add-body").innerHTML = `
+      <p class="group-label">Name</p>
+      <div class="group"><input id="add-name" class="field" type="text" maxlength="80" required
+        placeholder="e.g. Bencotto" value="${esc(name)}" autocomplete="off" enterkeyhint="next"></div>
+      <p class="group-label">Neighborhood (optional)</p>
+      <div class="group"><input id="add-hint" class="field" type="text" maxlength="80"
+        placeholder="Helps find the right place, e.g. Little Italy" autocomplete="off"></div>
+      <p class="group-label">Happy hour menu photo (optional)</p>
+      <label class="photo-pick">
+        <input type="file" id="add-file" accept="image/*">
+        <img id="add-preview" alt="" hidden>
+        <span class="photo-pick-empty" id="add-empty">${ICON.camera}<span>Add a photo to fill in the days, hours and deals</span></span>
+      </label>
+      <input type="text" id="add-website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="button" id="add-submit" class="btn-primary" ${name.trim().length >= 2 ? "" : "disabled"}>Add Spot</button>
+      <p class="group-foot">We look up the address, neighborhood, phone, website and published happy hours on the web.
+        A photo, if you add one, wins for days, hours and deals.</p>`;
+  }
+
+  const fmtDays = (days) => {
+    const idx = days.map((d) => HH.DAYS.indexOf(d)).filter((i) => i >= 0).sort((a, b) => a - b);
+    if (idx.length === 7) return "Every day";
+    if (idx.join() === "0,1,2,3,4") return "Weekdays";
+    const runs = [];
+    idx.forEach((i) => { const r = runs[runs.length - 1]; if (r && i === r[1] + 1) r[1] = i; else runs.push([i, i]); });
+    return runs.map(([a, b]) => (b - a >= 2 ? `${HH.DAYS[a]}–${HH.DAYS[b]}` : a === b ? HH.DAYS[a] : `${HH.DAYS[a]}, ${HH.DAYS[b]}`)).join(", ");
+  };
+
+  async function submitAdd() {
+    const name = ($("#add-name").value || "").trim();
+    if (adding.busy || name.length < 2) return;
+    adding.busy = true;
+    const payload = {
+      action: "addSpot",
+      name,
+      hint: ($("#add-hint").value || "").trim(),
+      website: ($("#add-website") || {}).value || "",
+    };
+    if (adding.image) { payload.image = adding.image.base64; payload.mimeType = adding.image.mimeType; }
+    $("#add-body").innerHTML = `<div class="loading"><span class="spinner"></span>Looking up ${esc(name)}… this can take up to a minute.</div>`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 150000);
+    try {
+      const res = await fetch(config.MENU_UPLOAD_URL, { method: "POST", body: JSON.stringify(payload), signal: ctrl.signal });
+      const data = await res.json();
+      if (data.ok) { adding.refresh = true; renderAddResult(data); }
+      else renderAddError(name, data);
+    } catch (e) {
+      renderAddError(name, { error: e.name === "AbortError" ? "It took too long. Please try again." : e.message || String(e) });
+    } finally {
+      clearTimeout(timer);
+      adding.busy = false;
+    }
+  }
+
+  function renderAddResult(d) {
+    const s = d.spot || {};
+    const rows = [];
+    if (s.address) rows.push(["Address", s.address + (d.mapped ? "" : " (not on the map yet)")]);
+    const meta = [s.neighborhood, s.type, s.price].filter(Boolean).join(" · ");
+    if (meta) rows.push(["Details", meta]);
+    rows.push(["Happy hour", (d.schedules || []).length
+      ? d.schedules.map((w) => `${w.label && !/^happy hour$/i.test(w.label) ? w.label + ": " : ""}${fmtDays(w.days) || "Days not listed"}${
+          w.start ? ` · ${w.start}${w.end ? "–" + w.end : ""}` : ""}`).join("\n")
+      : "No times found yet. Upload a menu photo to add them."]);
+    rows.push(["Deals", d.dealCount ? `${d.dealCount} added` : "None found yet"]);
+    if ((d.sources || []).length) rows.push(["Sources", d.sources.map((u) => u.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]).join(", ")]);
+    $("#add-body").innerHTML = `
+      <div class="upload-done">${ICON.check}<h3>Added ${esc(s.name || "")}</h3>
+        <p>${(d.schedules || []).length ? "It's in the app now." : "It's saved, and will show in the list once it has happy hour times."}
+          Details are marked "Needs check" in the sheet.</p></div>
+      <p class="group-label">What we found</p>
+      <div class="group">${rows.map(([k, v]) => `<div class="row"><span class="row-text">${esc(k)}<small>${esc(v)}</small></span></div>`).join("")}</div>
+      ${d.photoError ? `<p class="group-foot">We couldn't read the photo: ${esc(d.photoError)}</p>` : ""}
+      <button type="button" class="btn-primary" data-close-add>Done</button>`;
+  }
+
+  function renderAddError(name, d) {
+    $("#add-body").innerHTML = `
+      <div class="empty">${ICON.pin}<h3>${d.duplicate ? "Already in the App" : "Couldn't Add It"}</h3>
+        <p>${esc(d.error || "Something went wrong.")}</p></div>
+      ${d.duplicate && d.spotId && state.model.spots.has(d.spotId)
+        ? `<button type="button" class="btn-primary" data-upload-for="${esc(d.spotId)}">Upload a Menu Photo for It</button>`
+        : `<button type="button" class="btn-primary" data-retry-add="${esc(name)}">Try Again</button>`}`;
+  }
+
+  function wireAddDialog() {
+    const dlg = $("#add-dialog");
+    const btn = $("#add-btn");
+    if (!dlg || !btn) return; // older cached index.html
+    if (config.MENU_UPLOAD_URL) btn.hidden = false;
+    const close = () => (dlg.close ? dlg.close() : dlg.removeAttribute("open"));
+    btn.addEventListener("click", () => openAdd());
+    $("#add-cancel").addEventListener("click", close);
+    dlg.addEventListener("click", (e) => { if (e.target === dlg && !adding.busy) close(); });
+    dlg.addEventListener("close", () => { if (adding.refresh) { adding.refresh = false; refreshData(); } });
+    $("#footer").addEventListener("click", (e) => { if (e.target.closest("[data-add]")) openAdd(); });
+    const body = $("#add-body");
+    body.addEventListener("input", (e) => {
+      if (e.target.id === "add-name") $("#add-submit").disabled = e.target.value.trim().length < 2;
+    });
+    body.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.id === "add-name") { e.preventDefault(); $("#add-hint").focus(); }
+    });
+    body.addEventListener("change", async (e) => {
+      if (e.target.id !== "add-file" || !e.target.files[0]) return;
+      try {
+        adding.image = await prepareImage(e.target.files[0]);
+        const prev = $("#add-preview");
+        prev.src = adding.image.dataUrl;
+        prev.hidden = false;
+        $("#add-empty").hidden = true;
+      } catch (err) {
+        adding.image = null;
+        alert(err.message || err);
+      }
+    });
+    body.addEventListener("click", (e) => {
+      if (e.target.closest("#add-submit")) submitAdd();
+      if (e.target.closest("[data-close-add]")) close();
+      const retry = e.target.closest("[data-retry-add]");
+      if (retry) renderAddForm(retry.dataset.retryAdd);
+      const up = e.target.closest("[data-upload-for]");
+      if (up) { close(); openUpload(up.dataset.uploadFor); }
+    });
+  }
+
   /** Re-load the sheet without a page reload (used after an upload goes live). */
   async function refreshData() {
     try {
@@ -655,6 +798,7 @@
     const fresh = spots.filter((s) => s.lastVerified && s.lastVerified.getTime() >= cutoff).length;
     const pct = spots.length ? Math.round((fresh / spots.length) * 100) : 0;
     $("#footer").innerHTML = `
+      ${config.MENU_UPLOAD_URL ? `<p class="footer-add"><button type="button" class="inline-link" data-add>${ICON.plus}Add a missing spot</button></p>` : ""}
       <p>${spots.length} spots · ${pct}% verified in the last 30 days</p>
       <p>Times are San Diego time. Deals change, so check with the spot before you go.</p>`;
   }
@@ -725,6 +869,7 @@
       if (up) openUpload(up.dataset.upload);
     });
     wireMenuDialogs();
+    wireAddDialog();
 
     const dialog = $("#filters-dialog");
     const openFilters = () => {
