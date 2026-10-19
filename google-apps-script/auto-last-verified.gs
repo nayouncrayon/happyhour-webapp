@@ -40,6 +40,18 @@ function onEdit(e) {
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
   const tab = sheet.getName();
+
+  // Approving a menu upload (Menu Uploads → Status = Approved) also counts as verifying that spot.
+  if (tab === "Menu Uploads") {
+    const h = headersOf_(sheet);
+    const statusCol = h.indexOf("Status") + 1;
+    if (statusCol && e.range.getColumn() <= statusCol && e.range.getLastColumn() >= statusCol &&
+        String(e.value || "").trim() === "Approved") {
+      const spotId = String(sheet.getRange(e.range.getRow(), h.indexOf(SETTINGS.SPOT_ID_HEADER) + 1).getValue()).trim();
+      if (spotId) stampSpots_([spotId]);
+    }
+    return;
+  }
   if ([SETTINGS.SPOTS_TAB, SETTINGS.SCHEDULES_TAB, SETTINGS.DEALS_TAB].indexOf(tab) === -1) return;
 
   const headers = headersOf_(sheet);
