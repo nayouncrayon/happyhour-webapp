@@ -599,6 +599,8 @@
   }
 
   function wireMenuDialogs() {
+    // If a cached older index.html is missing these dialogs, skip quietly instead of breaking the app.
+    if (!$("#photo-dialog") || !$("#upload-dialog")) return;
     const photoDlg = $("#photo-dialog");
     $("#photo-close").addEventListener("click", () => photoDlg.close ? photoDlg.close() : photoDlg.removeAttribute("open"));
     photoDlg.addEventListener("click", (e) => { if (e.target === photoDlg && photoDlg.close) photoDlg.close(); });
