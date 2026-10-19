@@ -71,14 +71,14 @@ Note that any edit counts, including fixing a typo. If you only want to stamp sp
 
 ### Menu photo uploads (optional, one-time setup)
 
-Anyone using the app can tap **Upload menu photo** on a spot. The photo goes to your Google Apps Script, which saves it to your Google Drive and asks Gemini to read it. The results land in two new tabs as **Pending**:
+Anyone using the app can tap **Upload menu photo** on a spot. The photo goes to your Google Apps Script, which saves it to your Google Drive and asks Gemini to read it. The results land in two new tabs. A photo Gemini recognizes as a menu goes live right away (`Status = Approved`). Anything that doesn't look like a menu, or couldn't be read, waits as **Pending**. To review every upload first, add the Script property `AUTO_APPROVE = false`.
 
 | Tab | One row per… | What you do |
 |---|---|---|
-| **Menu Uploads** | uploaded photo | Check the photo and what was read: happy hour days/hours/details, deal rules, item count, AI notes. Set `Status` to **Approved** or **Rejected**. |
+| **Menu Uploads** | uploaded photo | Spot-check the photo and what was read: happy hour days/hours/details, deal rules, item count, AI notes. Set `Status` to **Rejected** to take one down, or **Approved** to publish a Pending one. |
 | **Menu Items** | item read from the menu | Section, item, description, price, dietary tags. Untick `Show?` to hide one item. Fix any tag that's wrong. |
 
-Once an upload is approved, the app shows a **Menu** button on the spot (the photo) and green dietary chips (Vegetarian, Vegan, Gluten-free…) that expand into the matching items. Approving also stamps that spot's `Last verified` date. Days, hours and deals read from the photo are **not** copied into Schedules/Deals automatically; compare them and update those tabs yourself.
+Approved uploads show a **Menu** button on the spot (the photo) and green dietary chips (Vegetarian, Vegan, Gluten-free…) that expand into the matching items. Approving by hand also stamps that spot's `Last verified` date; auto-approved uploads don't, since nobody checked them. Days, hours and deals read from the photo are **not** copied into Schedules/Deals automatically; compare them and update those tabs yourself.
 
 Setup:
 
@@ -93,7 +93,7 @@ Safeguards:
 - The API key stays in Apps Script and never reaches the browser.
 - Uploads are rate-limited (per spot per hour, and overall).
 - A hidden honeypot field drops most bots.
-- Nothing is public until you approve it.
+- Only photos Gemini reads as a menu go live automatically; you can reject any upload at any time.
 - Photos in the Drive folder are "anyone with the link can view", so the app can display approved ones.
 
 ---
