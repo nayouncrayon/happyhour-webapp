@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#E8613C">
+  <meta name="description" content="Happy hours in downtown San Diego: what's on now, what's next, and the deals.">
+  <title>Happy Hour SD</title>
+
+  <!-- Map library (Leaflet) + OpenStreetMap tiles: free, no API key. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1 id="app-title">Happy Hour SD</h1>
+      <p id="app-subtitle">Downtown San Diego</p>
+    </div>
+    <button id="filters-btn" class="btn-pill" type="button">
+      Filters <span id="filter-count" class="filter-count" hidden></span>
+    </button>
+  </header>
+
+  <nav id="day-tabs" class="days" role="tablist" aria-label="Day of week"></nav>
+
+  <div class="toolbar">
+    <div class="segmented" role="tablist" aria-label="View">
+      <button type="button" data-view="list" role="tab">List</button>
+      <button type="button" data-view="map" role="tab">Map</button>
+    </div>
+    <p id="summary" class="summary" aria-live="polite"></p>
+  </div>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main>
+    <section id="list-view" class="list-view"><p class="muted loading">Loading happy hours…</p></section>
+    <section id="map-view" class="map-view" hidden>
+      <div id="map" class="map" role="region" aria-label="Map of happy hours"></div>
+      <div class="legend">
+        <span><i class="pin pin-now"></i>On now</span>
+        <span><i class="pin pin-soon"></i>Soon</span>
+        <span><i class="pin pin-later"></i>Later</span>
+        <span><i class="pin pin-ended"></i>Ended</span>
+      </div>
+      <p id="map-note" class="muted"></p>
+    </section>
+  </main>
+
+  <footer id="footer" class="footer"></footer>
+
+  <dialog id="filters-dialog" class="sheet" aria-labelledby="filters-title">
+    <div class="sheet-head">
+      <h2 id="filters-title">Filters</h2>
+      <button id="filters-reset" type="button" class="link">Reset</button>
+    </div>
+    <div id="filters-body" class="sheet-body"></div>
+    <button id="filters-done" type="button" class="btn-primary">Show results</button>
+  </dialog>
+
+  <!-- Load order matters: config → helpers → sample data → data → app. -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="js/config.js" defer></script>
+  <script src="js/csv.js" defer></script>
+  <script src="js/time.js" defer></script>
+  <script src="data/sample-data.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
