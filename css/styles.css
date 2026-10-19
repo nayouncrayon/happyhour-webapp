@@ -320,6 +320,8 @@ details.section.is-dim .card { opacity: 0.55; }
 .dot-unknown, .dot-ended { background: var(--gray-dot); }
 .status .dot-now { background: var(--green-dot); }
 .map-note { margin: 10px 4px 0; font-size: 13px; color: var(--label-2); }
+/* Dark mode map: OpenStreetMap has no dark style, so invert the tiles (pins and popups stay untouched). */
+.map.is-dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55); }
 
 /* Map pins: Apple-Maps-like round markers with a white ring */
 .pin {
