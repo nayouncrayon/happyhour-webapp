@@ -519,8 +519,8 @@
         placeholder="e.g. new menu as of this week"></textarea></div>
       <input type="text" id="upload-website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
       <button type="button" id="upload-submit" class="btn-primary" disabled>Upload Photo</button>
-      <p class="group-foot">We read the days, hours, deals, prices and dietary labels automatically.
-        Photos are reviewed before they appear in the app.</p>`;
+      <p class="group-foot">We read the days, hours, deals, prices and dietary labels automatically,
+        and add the photo to this spot.</p>`;
   }
 
   /** Shrink the photo (long edge 2000px, JPEG) so uploads are quick on cell data. */
@@ -565,6 +565,7 @@
       const res = await fetch(config.MENU_UPLOAD_URL, { method: "POST", body: JSON.stringify(payload), signal: ctrl.signal });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Upload failed.");
+      upload.refresh = data.status === "Approved";
       renderUploadResult(spot, data);
     } catch (e) {
       $("#upload-body").innerHTML = `<div class="empty">${ICON.camera}<h3>Couldn't Upload</h3>
@@ -591,7 +592,9 @@
     }
     $("#upload-body").innerHTML = `
       <div class="upload-done">${ICON.check}<h3>Thanks!</h3>
-        <p>Your photo of ${esc(spot.name)}'s menu was sent for review.</p></div>
+        <p>${data.status === "Approved"
+          ? `Your photo of ${esc(spot.name)}'s menu is now on its card.`
+          : `Your photo of ${esc(spot.name)}'s menu was saved. We'll take a look before it appears.`}</p></div>
       ${rows.length ? `<p class="group-label">What we read</p><div class="group">${rows.map(([k, v]) =>
         `<div class="row"><span class="row-text">${esc(k)}<small>${esc(v)}</small></span></div>`).join("")}</div>`
         : `<p class="group-foot">${esc(data.aiError ? "We couldn't read it automatically, but we'll review it by hand." : "")}</p>`}
@@ -608,6 +611,8 @@
     const dlg = $("#upload-dialog");
     const close = () => (dlg.close ? dlg.close() : dlg.removeAttribute("open"));
     $("#upload-cancel").addEventListener("click", close);
+    // After a live (auto-approved) upload, reload the sheet so the menu photo and tags show up.
+    dlg.addEventListener("close", () => { if (upload.refresh) { upload.refresh = false; refreshData(); } });
     dlg.addEventListener("click", (e) => { if (e.target === dlg && !upload.busy) close(); });
     $("#upload-body").addEventListener("change", async (e) => {
       if (e.target.id !== "upload-file" || !e.target.files[0]) return;
@@ -629,6 +634,17 @@
       if (e.target.closest("[data-close-upload]")) close();
       if (e.target.closest("[data-retry]")) renderUploadForm(state.model.spots.get(upload.spotId));
     });
+  }
+
+  /** Re-load the sheet without a page reload (used after an upload goes live). */
+  async function refreshData() {
+    try {
+      const { model, source } = await HH.loadData(config);
+      if (source !== "sheet") return;
+      state.model = model;
+      renderFooter();
+      render();
+    } catch (e) { /* keep showing what we have */ }
   }
 
   /* ---------- footer ---------- */
