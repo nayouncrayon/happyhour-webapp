@@ -278,7 +278,7 @@
   }
   const openSections = new Set();
 
-  /* ---------- map (Leaflet; tiles set in config.MAP_TILES) ---------- */
+  /* ---------- map (Leaflet + OpenStreetMap tiles; set in config.MAP_TILES) ---------- */
 
   let map = null;
   let markerLayer = null;
@@ -289,12 +289,12 @@
 
   function setTiles() {
     if (!map) return;
+    // Dark mode = the same tiles, dimmed and inverted with CSS (.map.is-dark in styles.css).
+    $("#map").classList.toggle("is-dark", Boolean(darkQuery && darkQuery.matches));
+    if (tileLayer) return;
     const tiles = config.MAP_TILES || {};
-    const url = (darkQuery && darkQuery.matches ? tiles.dark : tiles.light) ||
-      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-    if (tileLayer) map.removeLayer(tileLayer);
-    tileLayer = L.tileLayer(url, {
-      maxZoom: 20, subdomains: "abcd",
+    tileLayer = L.tileLayer(tiles.url || "https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: tiles.maxZoom || 19,
       attribution: tiles.attribution || "&copy; OpenStreetMap contributors",
     }).addTo(map);
   }

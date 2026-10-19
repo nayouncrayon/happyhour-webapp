@@ -55,11 +55,11 @@ window.HH_CONFIG = {
   MAP_CENTER: [32.7195, -117.1665],
   MAP_ZOOM: 15,
 
-  // Map background tiles (free, no API key): CARTO basemaps built on OpenStreetMap data.
-  // A light and a dark style; the app switches with the phone's light/dark setting.
+  // Map background tiles: OpenStreetMap's standard tiles (free, no API key; attribution required).
+  // In dark mode the app dims and inverts them with CSS (.map.is-dark in css/styles.css).
   MAP_TILES: {
-    light: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
 };
