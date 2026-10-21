@@ -386,6 +386,7 @@ details.section.is-dim .card { opacity: 0.55; }
   margin: auto auto 0; border-radius: 14px 14px 0 0; background: var(--bg); color: var(--label);
   overflow: hidden; display: flex; flex-direction: column;
 }
+.sheet:not([open]) { display: none; }
 .sheet[open] { animation: sheet-up 0.42s var(--ease); }
 @keyframes sheet-up { from { transform: translateY(100%); } }
 .sheet::backdrop { background: rgba(0, 0, 0, 0.32); animation: fade 0.3s ease; }
