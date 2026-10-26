@@ -14,6 +14,7 @@
   <!-- Map library (Leaflet). Map tiles are set in js/config.js. -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/styles.css?v=20261021a">
+  <link rel="stylesheet" href="css/group.css?v=20261026a">
 </head>
 <body>
   <!--
@@ -29,6 +30,9 @@
       <p class="subtitle" id="app-subtitle">Downtown San Diego</p>
     </div>
     <div class="title-actions">
+      <button id="group-btn" class="icon-btn" type="button" aria-label="Group Pick: choose a spot with friends" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17.5 14.2c2.4.4 4 2.4 4 5.3"/></svg>
+      </button>
       <button id="add-btn" class="icon-btn" type="button" aria-label="Add a spot" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       </button>
@@ -137,7 +141,12 @@
     <div id="add-body" class="sheet-body"></div>
   </dialog>
 
-  <!-- Load order matters: config → helpers → sample data → data → app.
+  <!-- Group Pick: full-screen flow (start a group, share the link, preferences, the pick). See js/group.js. -->
+  <dialog id="gp-dialog" class="gp" aria-label="Group Pick">
+    <div id="gp-scroll" class="gp-scroll"><div id="gp-body"></div></div>
+  </dialog>
+
+  <!-- Load order matters: config → helpers → sample data → data → app → group.
        The ?v= stamp makes phones fetch fresh files after an update: change it whenever you edit css/js. -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="js/config.js?v=20261021a" defer></script>
@@ -146,5 +155,6 @@
   <script src="data/sample-data.js?v=20261021a" defer></script>
   <script src="js/data.js?v=20261021a" defer></script>
   <script src="js/app.js?v=20261021a" defer></script>
+  <script src="js/group.js?v=20261026a" defer></script>
 </body>
 </html>

@@ -112,6 +112,25 @@ Setup: in the same Apps Script project, add a file named `add-spot` and paste `g
 
 Limits: `MAX_NEW_SPOTS_PER_DAY` (Script property, default 15). Google Search grounding has a monthly free allowance, then per-search pricing; see Gemini's Google Search docs.
 
+### Group Pick: choose a spot with friends (optional; same web app as menu uploads)
+
+The people button at the top opens **Group Pick**. The organizer names the outing, picks a day on the calendar and gets a link to text the group. Everyone who opens the link adds their name, **when they can get there** (required) and any preferences: neighborhoods, price level, food deals, drinks, a table instead of bar-only seating, vibe, and spots they'd rather skip. No accounts.
+
+How the pick is made (all in `js/group.js`, against the same sheet data the list uses):
+
+1. **Arrival is the one rule.** Happy hour has to run at least 45 minutes after the last person can get there, and have started by then (or within 30 minutes).
+2. **Everything else ranks.** Each person's preferences share one point, so a long list can't outvote a short one. Met = 1, unknown (the sheet doesn't say) = 0.5, missed = 0.
+3. **Ties:** longer shared happy hour, then verified data (Days confirmed, Last verified), then name.
+4. **Result:** a top pick plus two runners-up with a one-line trade-off each. If nobody's arrival works, it shows the closest spot and how much earlier the late person would need to arrive to open things up. The organizer can lock in a spot and share it.
+
+Setup (about 2 minutes, after menu uploads are set up):
+
+1. In Apps Script, click **+ → Script**, name it `group-pick`, and paste `google-apps-script/group-pick.gs`.
+2. Replace the contents of your `menu-upload` file with the updated `google-apps-script/menu-upload.gs` (one new line routes group requests). Save both files.
+3. **Deploy → Manage deployments → edit (pencil) → Version: New version → Deploy.** The web app URL stays the same.
+
+The **Groups** and **Group Members** tabs are created on first use. Each phone gets a random token when it creates or joins a group; only its hash is stored, so the sheet never shows anything that lets someone edit another person's preferences. Only the organizer can change the day or lock in a spot. Limit: `MAX_GROUPS_PER_DAY` (Script property, default 60).
+
 ---
 
 ## Project structure
@@ -125,10 +144,13 @@ happy-hour-app/
 ├── js/time.js          Time helpers: San Diego "now", parse "4:30 PM", format "4–6 PM".
 ├── js/data.js          Loads the 3 tabs, cleans rows, links them, computes status (on now / soon / later / ended).
 ├── js/app.js           UI: week strip, search, list cards, filters sheet, tab bar, map. Reads the model from data.js.
+├── js/group.js         Group Pick: group link, everyone's preferences, and the ranking that picks a spot.
+├── css/group.css       Group Pick screens.
 ├── data/sample-data.js Snapshot of the sheet as CSV text; used when no sheet is connected.
 ├── google-apps-script/auto-last-verified.gs  Optional: auto-stamps Last verified (paste into Extensions → Apps Script).
 ├── google-apps-script/menu-upload.gs         Optional: menu photo uploads read by Gemini (deployed as a web app).
 ├── google-apps-script/add-spot.gs            Optional: "Add a Spot" (web lookup + optional photo); same web app.
+├── google-apps-script/group-pick.gs          Optional: Group Pick groups and preferences; same web app.
 └── README.md           This file.
 ```
 
