@@ -63,6 +63,7 @@ function doPost(e) {
     const body = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     if (body.website) return json_({ ok: true, ignored: true }); // honeypot field filled = bot
     if (body.action === "addSpot") return json_(addSpot_(body)); // see add-spot.gs
+    if (String(body.action || "").indexOf("group") === 0) return json_(groupPick_(body)); // see group-pick.gs
 
     const spotId = String(body.spotId || "").trim();
     const image = String(body.image || "");
